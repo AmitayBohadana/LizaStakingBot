@@ -1,0 +1,15 @@
+node_modules
+.env
+coverage
+coverage.json
+typechain
+typechain-types
+
+# Hardhat files
+cache
+artifacts
+config.yaml
+config.yaml
+SideBets/testnet-config.yaml
+SideBets/mainnet-config.yaml
+*.db
