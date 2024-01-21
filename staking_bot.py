@@ -598,13 +598,22 @@ STAKING_CONTRACT_ADDRESSES = ['0x27d72E38C23bdCacAb5b31F58627393097bd846a', '0xD
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
-# Set up the Web3 connection
-web3 = Web3(Web3.WebsocketProvider(WEB3_PROVIDER_URI))
+# Initialize Web3 connection
+try:
+    web3 = Web3(Web3.WebsocketProvider(WEB3_PROVIDER_URI))
+    if not web3.isConnected():
+        logger.error("Failed to connect to Web3 Provider")
+except Exception as e:
+    logger.error(f"Web3 connection error: {e}")
 
-# Set up the Telegram bot
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
-updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
+# Initialize Telegram bot
+try:
+    bot = Bot(token=TELEGRAM_BOT_TOKEN)
+    updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
+except Exception as e:
+    logger.error(f"Telegram bot initialization error: {e}")
 
+# Function to fetch USD price
 def fetch_usd_price(token_symbol):
     try:
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={token_symbol}&vs_currencies=usd"
@@ -614,6 +623,8 @@ def fetch_usd_price(token_symbol):
     except Exception as e:
         logger.error(f"Error fetching USD price: {e}")
         return None
+
+
 
 def escape_markdown(text):
     """Escape markdown characters."""
@@ -635,11 +646,6 @@ def handle_event(event, contract):
         amount_staked = event['args']['amount'] / (10 ** 18)  # Adjust for token decimals
         # Fetch the USD price of $LIZA
         liza_usd_price = fetch_usd_price('liza-2')  # Replace 'liza' with the actual ID used by CoinGecko for Liza token
-
-
-
-        print("liza_usd_price: ",liza_usd_price)
-
         # Format the staking information
         robot_emoji = '🤖'
         amount_staked_formatted = f"{amount_staked:,.2f}"  # Format with comma separators and 2 decimal places
@@ -711,35 +717,35 @@ def handle_event(event, contract):
     except Exception as e:
         logger.error(f"Error in handle_event: {e}")
 
-
 # Async function to poll for new events
 async def log_loop(event_filter, poll_interval, contract):
     while True:
-        for event in event_filter.get_new_entries():
-            handle_event(event, contract)
-        await asyncio.sleep(poll_interval)
+        try:
+            for event in event_filter.get_new_entries():
+                handle_event(event, contract)
+            await asyncio.sleep(poll_interval)
+        except Exception as e:
+            logger.error(f"Error in log_loop: {e}")
+            await asyncio.sleep(poll_interval)
 
 
 # Create and run tasks for each contract
 async def main():
     tasks = []
-    for address in STAKING_CONTRACT_ADDRESSES:
-        contract = web3.eth.contract(address=address, abi=STAKING_CONTRACT_ABI)
-        event_filter = contract.events.Staked.create_filter(fromBlock='latest')
-        tasks.append(asyncio.create_task(log_loop(event_filter, 2, contract)))
+    try:
+        for address in STAKING_CONTRACT_ADDRESSES:
+            contract = web3.eth.contract(address=address, abi=STAKING_CONTRACT_ABI)
+            event_filter = contract.events.Staked.create_filter(fromBlock='latest')
+            tasks.append(asyncio.create_task(log_loop(event_filter, 2, contract)))
+        await asyncio.gather(*tasks)
+    except Exception as e:
+        logger.error(f"Error in main: {e}")
 
-    await asyncio.gather(*tasks)
-
-
-# Start the bot and send a hello message
-updater.start_polling()
-
-# Start the bot
-updater.start_polling()
 
 # Run the main function using asyncio
 if __name__ == '__main__':
     try:
+        updater.start_polling()
         asyncio.run(main())
     except Exception as e:
         logger.error(f"Error in main function: {e}")
