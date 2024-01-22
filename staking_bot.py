@@ -601,7 +601,7 @@ logger = logging.getLogger(__name__)
 # Initialize Web3 connection
 try:
     web3 = Web3(Web3.WebsocketProvider(WEB3_PROVIDER_URI))
-    if not web3.isConnected():
+    if not web3.is_connected():
         logger.error("Failed to connect to Web3 Provider")
 except Exception as e:
     logger.error(f"Web3 connection error: {e}")
