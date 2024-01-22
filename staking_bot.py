@@ -676,7 +676,7 @@ def handle_event(event, contract):
             total_staked_usd_value_formatted = ""
 
         # Relative path to your video
-        video_path = 'liza_staking_video.mp4'  # Since the video is in the same directory as the script
+        video_path = '/var/www/LizaBot/liza_staking_video.mp4'  # Since the video is in the same directory as the script
 
         # Escape Markdown characters in the caption
         caption = (
