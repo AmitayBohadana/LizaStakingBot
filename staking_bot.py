@@ -6,6 +6,9 @@ from web3 import Web3
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, CallbackContext
 import requests
+import time
+
+MAX_RETRIES = 5
 
 # Your bot token from BotFather
 TELEGRAM_BOT_TOKEN = '6625329190:AAHBTirm09PJ1gjf0KYfqHVbIsFgatatNc4'
@@ -638,6 +641,8 @@ def get_total_staked_from_contract(contract_address, contract_abi):
   return total_staked_raw / (10 ** 18)  # Adjust for token decimals if necessary
 def handle_event(event, contract):
     try:
+        logger.info("new event detected ",event)
+        print("new event detected ",event)
         # Define your custom emojis
         amount_staked_emoji = '👍'  # Replace with your chosen emoji for amount staked
         duration_emoji = '⏰'  # Replace with your chosen emoji for duration
@@ -692,7 +697,8 @@ def handle_event(event, contract):
         transaction_hash_bytes = event['transactionHash']
         transaction_hash_hex = transaction_hash_bytes.hex()  # Convert bytes to hex string
 
-        print("transaction hash: _",transaction_hash_hex)
+        print("new staking! transaction hash: _",transaction_hash_hex)
+        logger.info("new staking! transaction hash: _",transaction_hash_hex)
         # Ensure that the URL starts with https://
         etherscan_url = f"https://etherscan.io/tx/{transaction_hash_hex}"
 
@@ -738,14 +744,31 @@ async def main():
             event_filter = contract.events.Staked.create_filter(fromBlock='latest')
             tasks.append(asyncio.create_task(log_loop(event_filter, 2, contract)))
         await asyncio.gather(*tasks)
+
+    except telegram.error.NetworkError as e:
+      logger.error(f"Telegram Network Error: {e}")
+    # Handle network error specifically
     except Exception as e:
         logger.error(f"Error in main: {e}")
 
+
+def run_bot_with_retries():
+  retry_count = 0
+  while retry_count < MAX_RETRIES:
+    try:
+      asyncio.run(main())
+      break  # Exit the loop if the main function runs without errors
+    except Exception as e:
+      logger.error(f"Error in bot operation: {e}")
+      retry_count += 1
+      wait_time = 2 ** retry_count  # Exponential backoff
+      logger.info(f"Retrying in {wait_time} seconds...")
+      time.sleep(wait_time)
 
 # Run the main function using asyncio
 if __name__ == '__main__':
     try:
         updater.start_polling()
-        asyncio.run(main())
+        run_bot_with_retries()
     except Exception as e:
-        logger.error(f"Error in main function: {e}")
+        logger.error(f"Fatal error in main function: {e}")
